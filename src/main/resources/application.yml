@@ -1,0 +1,8 @@
+server:
+  port: 8080
+  tomcat:
+    max-threads: 1024
+    min-spare-threads: 8
+  error:
+    whitelabel:
+      enabled: false

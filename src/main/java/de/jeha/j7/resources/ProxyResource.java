@@ -1,36 +1,41 @@
 package de.jeha.j7.resources;
 
+import com.codahale.metrics.annotation.Timed;
 import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.http.Header;
+import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpHead;
 import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClientBuilder;
+import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.util.StringUtils;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
-import org.springframework.web.bind.annotation.RestController;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import javax.ws.rs.GET;
+import javax.ws.rs.HEAD;
+import javax.ws.rs.Path;
+import javax.ws.rs.core.Context;
 import java.io.IOException;
 
 /**
  * @author jenshadlich@googlemail.com
  */
-@RestController
+@Path("/")
 public class ProxyResource {
 
     private static final Logger LOG = LoggerFactory.getLogger(ProxyResource.class);
 
-    @Autowired
-    private CloseableHttpClient httpClient;
+    private final CloseableHttpClient httpClient = buildHttpClient();
 
-    @RequestMapping(value = "/**", method = RequestMethod.GET)
-    public void proxyGet(HttpServletRequest request, HttpServletResponse response) throws IOException {
+    @GET
+    @Path("{subResources:.*}")
+    @Timed
+    public void proxyGet(@Context HttpServletRequest request, @Context HttpServletResponse response) throws IOException {
         LOG.info("proxy GET request '{}', '{}'", request.getRequestURI(), request.getQueryString());
 
         String url = "http://" + chooseBackendInstance() + request.getRequestURI();
@@ -70,8 +75,10 @@ public class ProxyResource {
         }
     }
 
-    @RequestMapping(value = "/**", method = RequestMethod.HEAD)
-    public void proxyHead(HttpServletRequest request, HttpServletResponse response) throws IOException {
+    @HEAD
+    @Path("{subResources:.*}")
+    @Timed
+    public void proxyHead(@Context HttpServletRequest request, @Context HttpServletResponse response) throws IOException {
         LOG.info("proxy HEAD request '{}', '{}'", request.getRequestURI(), request.getQueryString());
 
         String url = "http://" + chooseBackendInstance() + request.getRequestURI();
@@ -108,7 +115,21 @@ public class ProxyResource {
     }
 
     private String chooseBackendInstance() {
-        return "localhost:8888";
+        return "localhost:80";
     }
 
+    private CloseableHttpClient buildHttpClient() {
+        final RequestConfig config = RequestConfig.custom()
+                .setConnectTimeout(30_000)
+                .setSocketTimeout(30_000)
+                .build();
+
+        final PoolingHttpClientConnectionManager connectionManager = new PoolingHttpClientConnectionManager();
+        connectionManager.setMaxTotal(1024);
+
+        return HttpClientBuilder.create()
+                .setConnectionManager(connectionManager)
+                .setDefaultRequestConfig(config)
+                .build();
+    }
 }

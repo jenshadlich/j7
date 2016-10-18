@@ -108,7 +108,7 @@ public class ProxyResource {
     }
 
     private String chooseBackendInstance() {
-        return "localhost:8888";
+        return "localhost:80";
     }
 
 }

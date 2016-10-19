@@ -1,0 +1,27 @@
+server:
+  type: default
+  maxThreads: 1024
+  applicationConnectors:
+    - type: http
+      port: 8080
+      maxRequestHeaderSize: 8KiB
+      maxResponseHeaderSize: 8KiB
+      acceptorThreads: 4
+      selectorThreads: 4
+  adminConnectors:
+    - type: http
+      port: 8081
+  gzip:
+    enabled: true
+    bufferSize: 32KiB
+  requestLog:
+    appenders:
+      - type: console
+        timeZone: UTC
+
+logging:
+  level: INFO
+  loggers:
+    "de.jeha.j7": DEBUG
+  appenders:
+    - type: console

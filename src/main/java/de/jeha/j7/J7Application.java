@@ -44,6 +44,8 @@ public class J7Application extends Application<J7Configuration> {
         environment.jersey().register(new LoggingFilter(Logger.getLogger("InboundRequestResponse"), false));
 
         environment.jersey().disable(ServerProperties.WADL_FEATURE_DISABLE);
+        environment.jersey().disable(ServerProperties.LOCATION_HEADER_RELATIVE_URI_RESOLUTION_DISABLED);
+        environment.jersey().disable(ServerProperties.JSON_PROCESSING_FEATURE_DISABLE);
     }
 
 }

@@ -1,13 +1,14 @@
 package de.jeha.j7.resources;
 
 import com.codahale.metrics.annotation.Timed;
+import de.jeha.j7.common.http.Headers;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.Header;
 import org.apache.http.client.config.RequestConfig;
-import org.apache.http.client.methods.CloseableHttpResponse;
-import org.apache.http.client.methods.HttpGet;
-import org.apache.http.client.methods.HttpHead;
+import org.apache.http.client.methods.*;
+import org.apache.http.entity.ByteArrayEntity;
+import org.apache.http.entity.InputStreamEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
@@ -16,11 +17,13 @@ import org.slf4j.LoggerFactory;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import javax.ws.rs.GET;
-import javax.ws.rs.HEAD;
-import javax.ws.rs.Path;
+import javax.ws.rs.*;
 import javax.ws.rs.core.Context;
+import javax.ws.rs.core.Response;
 import java.io.IOException;
+import java.util.Collections;
+
+import static de.jeha.j7.common.http.Headers.CONTENT_LENGTH;
 
 /**
  * @author jenshadlich@googlemail.com
@@ -30,92 +33,152 @@ public class ProxyResource {
 
     private static final Logger LOG = LoggerFactory.getLogger(ProxyResource.class);
 
+    private static final String ALL_SUB_RESOURCES = "{subResources:.*}";
+
     private final CloseableHttpClient httpClient = buildHttpClient();
 
     @GET
-    @Path("{subResources:.*}")
+    @Path(ALL_SUB_RESOURCES)
     @Timed
-    public void proxyGet(@Context HttpServletRequest request, @Context HttpServletResponse response) throws IOException {
+    public Response proxyGet(@Context HttpServletRequest request,
+                             @Context HttpServletResponse response) throws IOException {
         LOG.info("proxy GET request '{}', '{}'", request.getRequestURI(), request.getQueryString());
 
-        String url = "http://" + chooseBackendInstance() + request.getRequestURI();
-        if (!StringUtils.isEmpty(request.getQueryString())) {
-            url += request.getQueryString();
-        }
+        final String url = buildBackendUrl(request);
+        final HttpGet delegate = new HttpGet(url);
 
-        HttpGet delegate = new HttpGet(url);
-
-        final CloseableHttpResponse backendResponse;
-        try {
-            backendResponse = httpClient.execute(delegate);
-        } catch (IOException e) {
-            LOG.warn("502 Bad Gateway '{}'", e.getMessage());
-            response.setContentType("text/plain");
-            response.getOutputStream().print("502 Bad Gateway");
-            response.setStatus(HttpServletResponse.SC_BAD_GATEWAY);
-            response.flushBuffer();
-            return;
-        }
-
-        try {
-            // copy headers to response
-            for (Header header : backendResponse.getAllHeaders()) {
-                if ("Connection".equals(header.getName())) {
-                    continue;
-                }
-                response.setHeader(header.getName(), header.getValue());
-            }
-            if (backendResponse.getEntity().isStreaming()) {
-                IOUtils.copy(backendResponse.getEntity().getContent(), response.getOutputStream());
-                response.flushBuffer();
-            }
-        } finally {
-            backendResponse.close();
-            response.getOutputStream().close();
-        }
+        return process(request, delegate, response, true);
     }
 
     @HEAD
-    @Path("{subResources:.*}")
+    @Path(ALL_SUB_RESOURCES)
     @Timed
-    public void proxyHead(@Context HttpServletRequest request, @Context HttpServletResponse response) throws IOException {
+    public Response proxyHead(@Context HttpServletRequest request,
+                              @Context HttpServletResponse response) throws IOException {
         LOG.info("proxy HEAD request '{}', '{}'", request.getRequestURI(), request.getQueryString());
 
+        final String url = buildBackendUrl(request);
+        final HttpHead delegate = new HttpHead(url);
+
+        return process(request, delegate, response, true);
+    }
+
+    @POST
+    @Path(ALL_SUB_RESOURCES)
+    @Timed
+    public Response proxyPost(@Context HttpServletRequest request,
+                              @Context HttpServletResponse response) throws IOException {
+        LOG.info("proxy POST request '{}', '{}'", request.getRequestURI(), request.getQueryString());
+
+        final String url = buildBackendUrl(request);
+        final HttpPost delegate = new HttpPost(url);
+
+
+        delegate.setEntity(new InputStreamEntity(IOUtils.toBufferedInputStream(request.getInputStream())));
+
+        return process(request, delegate, response, true);
+    }
+
+    @PUT
+    @Path(ALL_SUB_RESOURCES)
+    @Timed
+    public Response proxyPut(@Context HttpServletRequest request,
+                             @Context HttpServletResponse response) throws IOException {
+        LOG.info("proxy PUT request '{}', '{}'", request.getRequestURI(), request.getQueryString());
+
+        final String url = buildBackendUrl(request);
+        final HttpPut delegate = new HttpPut(url);
+        byte[] data = IOUtils.toByteArray(request.getInputStream());
+
+        delegate.setEntity(new ByteArrayEntity(data));
+
+        return process(request, delegate, response, true);
+    }
+
+    @DELETE
+    @Path(ALL_SUB_RESOURCES)
+    @Timed
+    public Response proxyDelete(@Context HttpServletRequest request,
+                                @Context HttpServletResponse response) throws IOException {
+        LOG.info("proxy DELETE request '{}', '{}'", request.getRequestURI(), request.getQueryString());
+
+        final String url = buildBackendUrl(request);
+        final HttpDelete delegate = new HttpDelete(url);
+
+        return process(request, delegate, response, true);
+    }
+
+    // -----------------------------------------------------------------------------------------------------------------
+
+    private String buildBackendUrl(HttpServletRequest request) {
         String url = "http://" + chooseBackendInstance() + request.getRequestURI();
         if (!StringUtils.isEmpty(request.getQueryString())) {
             url += request.getQueryString();
         }
+        return url;
+    }
 
-        HttpHead delegate = new HttpHead(url);
-
+    private Response process(HttpServletRequest request, HttpRequestBase delegate, HttpServletResponse response, boolean copyResponseBody) throws IOException {
         final CloseableHttpResponse backendResponse;
         try {
+            copyHeaders(request, delegate);
             backendResponse = httpClient.execute(delegate);
         } catch (IOException e) {
-            LOG.warn("502 Bad Gateway '{}'", e.getMessage());
-            response.setContentType("text/plain");
-            response.getOutputStream().print("502 Bad Gateway");
-            response.setStatus(HttpServletResponse.SC_BAD_GATEWAY);
-            response.flushBuffer();
-            return;
+            LOG.warn("502 Bad Gateway '{}'", e.getMessage(), e);
+            return badGateway();
         }
 
         try {
-            // copy headers to response
-            for (Header header : backendResponse.getAllHeaders()) {
-                if ("Connection".equals(header.getName())) {
-                    continue;
+            if (copyResponseBody) {
+                if (backendResponse.getEntity() != null && backendResponse.getEntity().isStreaming()) {
+                    IOUtils.copy(backendResponse.getEntity().getContent(), response.getOutputStream());
+                    response.flushBuffer();
                 }
-                response.setHeader(header.getName(), header.getValue());
             }
         } finally {
-            backendResponse.close();
-            response.getOutputStream().close();
+            IOUtils.closeQuietly(backendResponse);
+            //IOUtils.closeQuietly(response.getOutputStream());
+        }
+
+        Response r = Response
+                .status(backendResponse.getStatusLine().getStatusCode())
+                .build();
+
+        for (Header header : backendResponse.getAllHeaders()) {
+            LOG.debug("Copy header from backend response to proxy response '{}'", header);
+            r.getHeaders().add(header.getName(), header.getValue());
+        }
+
+        return r;
+    }
+
+    private void copyHeaders(HttpServletRequest source, HttpRequestBase target) {
+        for (String headerName : Collections.list(source.getHeaderNames())) {
+            if (CONTENT_LENGTH.equals(headerName)) {
+                continue;
+            }
+            target.setHeader(headerName, source.getHeader(headerName));
+        }
+    }
+
+    private Response badGateway() throws IOException {
+        return Response
+                .status(Response.Status.BAD_GATEWAY)
+                .entity("502 Bad Gateway")
+                .build();
+    }
+
+    private void copyHeaders(CloseableHttpResponse source, HttpServletResponse target) {
+        for (Header header : source.getAllHeaders()) {
+            if (Headers.CONNECTION.equals(header.getName())) {
+                continue;
+            }
+            target.setHeader(header.getName(), header.getValue());
         }
     }
 
     private String chooseBackendInstance() {
-        return "localhost:80";
+        return "localhost:8888";
     }
 
     private CloseableHttpClient buildHttpClient() {

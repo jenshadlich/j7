@@ -4,11 +4,11 @@ import com.codahale.metrics.annotation.Timed;
 import de.jeha.j7.common.http.Headers;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.exception.ExceptionContext;
 import org.apache.http.Header;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.*;
 import org.apache.http.entity.ByteArrayEntity;
-import org.apache.http.entity.InputStreamEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
@@ -41,71 +41,96 @@ public class ProxyResource {
     @Path(ALL_SUB_RESOURCES)
     @Timed
     public Response proxyGet(@Context HttpServletRequest request,
-                             @Context HttpServletResponse response) throws IOException {
+                             @Context HttpServletResponse response) {
         LOG.info("proxy GET request '{}', '{}'", request.getRequestURI(), request.getQueryString());
 
         final String url = buildBackendUrl(request);
         final HttpGet delegate = new HttpGet(url);
 
-        return process(request, delegate, response, true);
+        try {
+            return process(request, delegate, response);
+        } catch (IOException e) {
+            return serverError(e);
+        }
+    }
+
+    private Response serverError(Exception exception) {
+        LOG.error("Server error", exception);
+        return Response.serverError().build();
     }
 
     @HEAD
     @Path(ALL_SUB_RESOURCES)
     @Timed
     public Response proxyHead(@Context HttpServletRequest request,
-                              @Context HttpServletResponse response) throws IOException {
+                              @Context HttpServletResponse response) {
         LOG.info("proxy HEAD request '{}', '{}'", request.getRequestURI(), request.getQueryString());
 
         final String url = buildBackendUrl(request);
         final HttpHead delegate = new HttpHead(url);
 
-        return process(request, delegate, response, true);
+        try {
+            return process(request, delegate, response);
+        } catch (IOException e) {
+            return serverError(e);
+        }
     }
 
     @POST
     @Path(ALL_SUB_RESOURCES)
     @Timed
     public Response proxyPost(@Context HttpServletRequest request,
-                              @Context HttpServletResponse response) throws IOException {
+                              @Context HttpServletResponse response) {
         LOG.info("proxy POST request '{}', '{}'", request.getRequestURI(), request.getQueryString());
 
         final String url = buildBackendUrl(request);
         final HttpPost delegate = new HttpPost(url);
 
+        try {
+            final byte[] data = IOUtils.toByteArray(request.getInputStream());
+            delegate.setEntity(new ByteArrayEntity(data));
 
-        delegate.setEntity(new InputStreamEntity(IOUtils.toBufferedInputStream(request.getInputStream())));
-
-        return process(request, delegate, response, true);
+            return process(request, delegate, response);
+        } catch (IOException e) {
+            return serverError(e);
+        }
     }
 
     @PUT
     @Path(ALL_SUB_RESOURCES)
     @Timed
     public Response proxyPut(@Context HttpServletRequest request,
-                             @Context HttpServletResponse response) throws IOException {
+                             @Context HttpServletResponse response) {
         LOG.info("proxy PUT request '{}', '{}'", request.getRequestURI(), request.getQueryString());
 
         final String url = buildBackendUrl(request);
         final HttpPut delegate = new HttpPut(url);
-        byte[] data = IOUtils.toByteArray(request.getInputStream());
 
-        delegate.setEntity(new ByteArrayEntity(data));
+        try {
+            final byte[] data = IOUtils.toByteArray(request.getInputStream());
+            delegate.setEntity(new ByteArrayEntity(data));
 
-        return process(request, delegate, response, true);
+            return process(request, delegate, response);
+        } catch (IOException e) {
+            return serverError(e);
+        }
     }
 
     @DELETE
     @Path(ALL_SUB_RESOURCES)
     @Timed
     public Response proxyDelete(@Context HttpServletRequest request,
-                                @Context HttpServletResponse response) throws IOException {
+                                @Context HttpServletResponse response) {
         LOG.info("proxy DELETE request '{}', '{}'", request.getRequestURI(), request.getQueryString());
 
         final String url = buildBackendUrl(request);
         final HttpDelete delegate = new HttpDelete(url);
 
-        return process(request, delegate, response, true);
+        try {
+            return process(request, delegate, response);
+        } catch (IOException e) {
+            return serverError(e);
+        }
     }
 
     // -----------------------------------------------------------------------------------------------------------------
@@ -118,7 +143,8 @@ public class ProxyResource {
         return url;
     }
 
-    private Response process(HttpServletRequest request, HttpRequestBase delegate, HttpServletResponse response, boolean copyResponseBody) throws IOException {
+    private Response process(HttpServletRequest request, HttpRequestBase delegate, HttpServletResponse response)
+            throws IOException {
         final CloseableHttpResponse backendResponse;
         try {
             copyHeaders(request, delegate);
@@ -129,11 +155,9 @@ public class ProxyResource {
         }
 
         try {
-            if (copyResponseBody) {
-                if (backendResponse.getEntity() != null && backendResponse.getEntity().isStreaming()) {
-                    IOUtils.copy(backendResponse.getEntity().getContent(), response.getOutputStream());
-                    response.flushBuffer();
-                }
+            if (backendResponse.getEntity() != null && backendResponse.getEntity().isStreaming()) {
+                IOUtils.copy(backendResponse.getEntity().getContent(), response.getOutputStream());
+                response.flushBuffer();
             }
         } finally {
             IOUtils.closeQuietly(backendResponse);

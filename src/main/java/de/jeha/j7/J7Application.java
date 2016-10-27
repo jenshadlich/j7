@@ -1,6 +1,7 @@
 package de.jeha.j7;
 
 import de.jeha.j7.config.J7Configuration;
+import de.jeha.j7.request.tracing.RequestTracingServletFilter;
 import de.jeha.j7.resources.ProxyResource;
 import io.dropwizard.Application;
 import io.dropwizard.setup.Bootstrap;
@@ -8,6 +9,8 @@ import io.dropwizard.setup.Environment;
 import org.glassfish.jersey.filter.LoggingFilter;
 import org.glassfish.jersey.server.ServerProperties;
 
+import javax.servlet.DispatcherType;
+import java.util.EnumSet;
 import java.util.Locale;
 import java.util.logging.Logger;
 
@@ -37,10 +40,12 @@ public class J7Application extends Application<J7Configuration> {
     @Override
     public void run(J7Configuration configuration, Environment environment) {
 
+        environment.servlets()
+                .addFilter("request-tracing-servlet-filter", new RequestTracingServletFilter())
+                .addMappingForUrlPatterns(EnumSet.of(DispatcherType.REQUEST), false, "*");
+
         environment.jersey().register(new ProxyResource());
 
-        // print request / response headers
-        // printEntity=false because printing consumes the input stream and breaks object creation (PUT Bucket)
         environment.jersey().register(new LoggingFilter(Logger.getLogger("InboundRequestResponse"), false));
 
         environment.jersey().disable(ServerProperties.WADL_FEATURE_DISABLE);

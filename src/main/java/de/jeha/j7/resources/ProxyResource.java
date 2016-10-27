@@ -4,7 +4,6 @@ import com.codahale.metrics.annotation.Timed;
 import de.jeha.j7.common.http.Headers;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.lang3.exception.ExceptionContext;
 import org.apache.http.Header;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.*;
@@ -161,19 +160,25 @@ public class ProxyResource {
             }
         } finally {
             IOUtils.closeQuietly(backendResponse);
-            //IOUtils.closeQuietly(response.getOutputStream());
         }
 
-        Response r = Response
+        return buildProxyResponse(backendResponse);
+    }
+
+    private Response buildProxyResponse(CloseableHttpResponse backendResponse) {
+        Response proxyResponse = Response
                 .status(backendResponse.getStatusLine().getStatusCode())
                 .build();
 
-        for (Header header : backendResponse.getAllHeaders()) {
-            LOG.debug("Copy header from backend response to proxy response '{}'", header);
-            r.getHeaders().add(header.getName(), header.getValue());
-        }
+        copyHeaders(backendResponse, proxyResponse);
 
-        return r;
+        return proxyResponse;
+    }
+
+    private void copyHeaders(CloseableHttpResponse source, Response target) {
+        for (Header header : source.getAllHeaders()) {
+            target.getHeaders().add(header.getName(), header.getValue());
+        }
     }
 
     private void copyHeaders(HttpServletRequest source, HttpRequestBase target) {

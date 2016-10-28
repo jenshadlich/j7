@@ -7,5 +7,6 @@ public class Headers {
 
     public static final String CONNECTION = "Connection";
     public static final String CONTENT_LENGTH = "Content-Length";
+    public static final String SERVER = "Server";
 
 }

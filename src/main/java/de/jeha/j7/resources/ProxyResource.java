@@ -2,15 +2,14 @@ package de.jeha.j7.resources;
 
 import com.codahale.metrics.annotation.Timed;
 import de.jeha.j7.common.http.Headers;
+import de.jeha.j7.config.J7Configuration;
+import de.jeha.j7.core.LoadBalancer;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.Header;
-import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.*;
 import org.apache.http.entity.ByteArrayEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.HttpClientBuilder;
-import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,7 +33,15 @@ public class ProxyResource {
 
     private static final String ALL_SUB_RESOURCES = "{subResources:.*}";
 
-    private final CloseableHttpClient httpClient = buildHttpClient();
+    private final String serverSignature;
+    private final CloseableHttpClient httpClient;
+    private final LoadBalancer loadBalancer;
+
+    public ProxyResource(J7Configuration configuration) {
+        this.serverSignature = configuration.getServerSignature();
+        this.httpClient = configuration.buildHttpClient();
+        this.loadBalancer = configuration.buildLoadBalancer();
+    }
 
     @GET
     @Path(ALL_SUB_RESOURCES)
@@ -82,7 +89,6 @@ public class ProxyResource {
 
         try {
             delegate.setEntity(new ByteArrayEntity(IOUtils.toByteArray(request.getInputStream())));
-
             return process(request, delegate, response);
         } catch (IOException e) {
             return serverError(e);
@@ -101,7 +107,6 @@ public class ProxyResource {
 
         try {
             delegate.setEntity(new ByteArrayEntity(IOUtils.toByteArray(request.getInputStream())));
-
             return process(request, delegate, response);
         } catch (IOException e) {
             return serverError(e);
@@ -135,6 +140,10 @@ public class ProxyResource {
         return url;
     }
 
+    private String chooseBackendInstance() {
+        return loadBalancer.balance().getInstance();
+    }
+
     private Response process(HttpServletRequest request, HttpRequestBase delegate, HttpServletResponse response)
             throws IOException {
         final CloseableHttpResponse backendResponse;
@@ -142,7 +151,7 @@ public class ProxyResource {
             copyHeaders(request, delegate);
             backendResponse = httpClient.execute(delegate);
         } catch (IOException e) {
-            LOG.warn("502 Bad Gateway '{}'", e.getMessage(), e);
+            LOG.warn("502 Bad Gateway", e);
             return badGateway();
         }
 
@@ -161,6 +170,7 @@ public class ProxyResource {
     private Response buildProxyResponse(CloseableHttpResponse backendResponse) {
         Response proxyResponse = Response
                 .status(backendResponse.getStatusLine().getStatusCode())
+                .header(Headers.SERVER, serverSignature)
                 .build();
 
         copyHeaders(backendResponse, proxyResponse);
@@ -184,9 +194,10 @@ public class ProxyResource {
         }
     }
 
-    private Response badGateway() throws IOException {
+    private Response badGateway() {
         return Response
                 .status(Response.Status.BAD_GATEWAY)
+                .header(Headers.SERVER, serverSignature)
                 .entity("502 Bad Gateway")
                 .build();
     }
@@ -195,25 +206,7 @@ public class ProxyResource {
         LOG.error("Server error", exception);
         return Response
                 .serverError()
-                .build();
-    }
-
-    private String chooseBackendInstance() {
-        return "localhost:8888";
-    }
-
-    private CloseableHttpClient buildHttpClient() {
-        final RequestConfig config = RequestConfig.custom()
-                .setConnectTimeout(30_000)
-                .setSocketTimeout(30_000)
-                .build();
-
-        final PoolingHttpClientConnectionManager connectionManager = new PoolingHttpClientConnectionManager();
-        connectionManager.setMaxTotal(1024);
-
-        return HttpClientBuilder.create()
-                .setConnectionManager(connectionManager)
-                .setDefaultRequestConfig(config)
+                .header(Headers.SERVER, serverSignature)
                 .build();
     }
 

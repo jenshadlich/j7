@@ -17,7 +17,6 @@ import java.util.logging.Logger;
 /**
  * @author jenshadlich@googlemail.com
  */
-
 public class J7Application extends Application<J7Configuration> {
 
     private static final String APPLICATION_NAME = "j7";
@@ -44,7 +43,7 @@ public class J7Application extends Application<J7Configuration> {
                 .addFilter("request-tracing-servlet-filter", new RequestTracingServletFilter())
                 .addMappingForUrlPatterns(EnumSet.of(DispatcherType.REQUEST), false, "*");
 
-        environment.jersey().register(new ProxyResource());
+        environment.jersey().register(new ProxyResource(configuration));
 
         environment.jersey().register(new LoggingFilter(Logger.getLogger("InboundRequestResponse"), false));
 

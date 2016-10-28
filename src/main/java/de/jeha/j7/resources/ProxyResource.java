@@ -53,11 +53,6 @@ public class ProxyResource {
         }
     }
 
-    private Response serverError(Exception exception) {
-        LOG.error("Server error", exception);
-        return Response.serverError().build();
-    }
-
     @HEAD
     @Path(ALL_SUB_RESOURCES)
     @Timed
@@ -86,8 +81,7 @@ public class ProxyResource {
         final HttpPost delegate = new HttpPost(url);
 
         try {
-            final byte[] data = IOUtils.toByteArray(request.getInputStream());
-            delegate.setEntity(new ByteArrayEntity(data));
+            delegate.setEntity(new ByteArrayEntity(IOUtils.toByteArray(request.getInputStream())));
 
             return process(request, delegate, response);
         } catch (IOException e) {
@@ -106,8 +100,7 @@ public class ProxyResource {
         final HttpPut delegate = new HttpPut(url);
 
         try {
-            final byte[] data = IOUtils.toByteArray(request.getInputStream());
-            delegate.setEntity(new ByteArrayEntity(data));
+            delegate.setEntity(new ByteArrayEntity(IOUtils.toByteArray(request.getInputStream())));
 
             return process(request, delegate, response);
         } catch (IOException e) {
@@ -198,6 +191,13 @@ public class ProxyResource {
                 .build();
     }
 
+    private Response serverError(Exception exception) {
+        LOG.error("Server error", exception);
+        return Response
+                .serverError()
+                .build();
+    }
+
     private String chooseBackendInstance() {
         return "localhost:8888";
     }
@@ -216,4 +216,5 @@ public class ProxyResource {
                 .setDefaultRequestConfig(config)
                 .build();
     }
+
 }

@@ -184,6 +184,7 @@ public class ProxyResource {
     private void copyHeaders(HttpServletRequest source, HttpRequestBase target) {
         for (String headerName : Collections.list(source.getHeaderNames())) {
             if (CONTENT_LENGTH.equals(headerName)) {
+                // don't copy the content length, otherwise httpclient will complain
                 continue;
             }
             target.setHeader(headerName, source.getHeader(headerName));
@@ -195,15 +196,6 @@ public class ProxyResource {
                 .status(Response.Status.BAD_GATEWAY)
                 .entity("502 Bad Gateway")
                 .build();
-    }
-
-    private void copyHeaders(CloseableHttpResponse source, HttpServletResponse target) {
-        for (Header header : source.getAllHeaders()) {
-            if (Headers.CONNECTION.equals(header.getName())) {
-                continue;
-            }
-            target.setHeader(header.getName(), header.getValue());
-        }
     }
 
     private String chooseBackendInstance() {

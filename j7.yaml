@@ -33,6 +33,10 @@ backend:
   name: default
 #  balance:
 #    type: round-robin
+  statusCheck:
+    path: /
   servers:
+#    - instance: localhost:6666
+#    - instance: localhost:7777
     - instance: localhost:8888
-
+#    - instance: localhost:9999

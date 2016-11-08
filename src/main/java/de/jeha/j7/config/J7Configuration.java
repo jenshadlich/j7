@@ -2,55 +2,77 @@ package de.jeha.j7.config;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import de.jeha.j7.core.LoadBalancer;
-import de.jeha.j7.core.RoundRobin;
+import de.jeha.j7.core.Backend;
+import de.jeha.j7.core.Server;
+import de.jeha.j7.core.balance.RoundRobin;
 import io.dropwizard.Configuration;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
+import org.apache.http.impl.conn.BasicHttpClientConnectionManager;
 import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
+import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * @author jenshadlich@googlemail.com
  */
 public class J7Configuration extends Configuration {
 
-    private static final Logger LOG = LoggerFactory.getLogger(J7Configuration.class);
-
+    @NotNull
     @JsonProperty
     private String serverSignature;
 
     @NotNull
     @Valid
-    private BackendConfiguration backend;
+    private BackendConfiguration backendConfiguration;
+
+    private transient Backend backend;
 
     @JsonCreator
-    public J7Configuration(@JsonProperty("backend") BackendConfiguration backend) {
-        this.backend = backend;
+    public J7Configuration(@JsonProperty("backend") BackendConfiguration backendConfiguration) {
+        this.backendConfiguration = backendConfiguration;
     }
 
     public String getServerSignature() {
         return serverSignature;
     }
 
-    public BackendConfiguration getBackend() {
+    public Backend getBackend() {
+        if (backend == null) {
+            backend = buildBackend();
+        }
         return backend;
     }
 
-    public LoadBalancer buildLoadBalancer() {
-        LOG.info("build round-robin loadbalancer");
-        return new RoundRobin(backend.getServers());
+    // -----------------------------------------------------------------------------------------------------------------
+
+    private Backend buildBackend() {
+        final List<Server> servers = backendConfiguration
+                .getServers()
+                .stream()
+                .map(serverConfiguration ->
+                        new Server(
+                                serverConfiguration.getInstance(),
+                                backendConfiguration.getStatusCheck().getPath(),
+                                new Server.Status()))
+                .collect(Collectors.toList());
+
+        return new Backend(
+                backendConfiguration.getName(),
+                servers,
+                new RoundRobin(servers),
+                buildHttpClient());
     }
 
-    public CloseableHttpClient buildHttpClient() {
+    private CloseableHttpClient buildHttpClient() {
         final RequestConfig config = RequestConfig.custom()
-                .setConnectTimeout(30_000)
-                .setSocketTimeout(30_000)
+                .setConnectTimeout(10_000)
+                .setSocketTimeout(10_000)
+                .setRedirectsEnabled(false)
                 .build();
 
         final PoolingHttpClientConnectionManager connectionManager = new PoolingHttpClientConnectionManager();
@@ -59,6 +81,21 @@ public class J7Configuration extends Configuration {
         return HttpClientBuilder.create()
                 .setConnectionManager(connectionManager)
                 .setDefaultRequestConfig(config)
+                .build();
+    }
+
+    public CloseableHttpClient buildStatusCheckHttpClient() {
+        final RequestConfig config = RequestConfig.custom()
+                .setConnectTimeout(1_000)
+                .setSocketTimeout(1_000)
+                .setRedirectsEnabled(false)
+                .setContentCompressionEnabled(false)
+                .build();
+
+        return HttpClientBuilder.create()
+                .setConnectionManager(new BasicHttpClientConnectionManager())
+                .setDefaultRequestConfig(config)
+                .setUserAgent(backendConfiguration.getStatusCheck().getUserAgent())
                 .build();
     }
 

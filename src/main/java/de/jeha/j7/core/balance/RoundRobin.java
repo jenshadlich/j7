@@ -1,6 +1,7 @@
-package de.jeha.j7.core;
+package de.jeha.j7.core.balance;
 
-import de.jeha.j7.config.BackendServer;
+import de.jeha.j7.core.Backend;
+import de.jeha.j7.core.Server;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -13,15 +14,15 @@ public class RoundRobin implements LoadBalancer {
 
     private static final Logger LOG = LoggerFactory.getLogger(RoundRobin.class);
 
-    private final CircularList<BackendServer> servers;
+    private final CircularList<Server> servers;
 
-    public RoundRobin(List<BackendServer> servers) {
+    public RoundRobin(List<Server> servers) {
         this.servers = new CircularList<>(servers);
     }
 
     @Override
-    public BackendServer balance() {
-        final BackendServer instance = servers.next();
+    public Server balance() {
+        final Server instance = servers.next();
         LOG.debug("balance: {}", instance);
         return instance;
     }

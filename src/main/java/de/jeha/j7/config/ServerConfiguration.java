@@ -5,7 +5,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 /**
  * @author jenshadlich@googlemail.com
  */
-public class BackendServer {
+public class ServerConfiguration {
 
     @JsonProperty
     private String instance;

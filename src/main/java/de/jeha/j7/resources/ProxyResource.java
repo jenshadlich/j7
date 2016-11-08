@@ -3,7 +3,8 @@ package de.jeha.j7.resources;
 import com.codahale.metrics.annotation.Timed;
 import de.jeha.j7.common.http.Headers;
 import de.jeha.j7.config.J7Configuration;
-import de.jeha.j7.core.LoadBalancer;
+import de.jeha.j7.core.Backend;
+import de.jeha.j7.core.balance.LoadBalancer;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.Header;
@@ -34,13 +35,11 @@ public class ProxyResource {
     private static final String ALL_SUB_RESOURCES = "{subResources:.*}";
 
     private final String serverSignature;
-    private final CloseableHttpClient httpClient;
-    private final LoadBalancer loadBalancer;
+    private final Backend backend;
 
-    public ProxyResource(J7Configuration configuration) {
-        this.serverSignature = configuration.getServerSignature();
-        this.httpClient = configuration.buildHttpClient();
-        this.loadBalancer = configuration.buildLoadBalancer();
+    public ProxyResource(String serverSignature, Backend backend) {
+        this.serverSignature = serverSignature;
+        this.backend = backend;
     }
 
     @GET
@@ -141,7 +140,7 @@ public class ProxyResource {
     }
 
     private String chooseBackendInstance() {
-        return loadBalancer.balance().getInstance();
+        return backend.getLoadBalancer().balance().getInstance();
     }
 
     private Response process(HttpServletRequest request, HttpRequestBase delegate, HttpServletResponse response)
@@ -149,7 +148,7 @@ public class ProxyResource {
         final CloseableHttpResponse backendResponse;
         try {
             copyHeaders(request, delegate);
-            backendResponse = httpClient.execute(delegate);
+            backendResponse = backend.getHttpClient().execute(delegate);
         } catch (IOException e) {
             LOG.warn("502 Bad Gateway", e);
             return badGateway();

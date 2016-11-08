@@ -14,15 +14,23 @@ public class BackendConfiguration {
     private String name;
 
     @JsonProperty
+    private StatusCheckConfiguration statusCheck;
+
+    @JsonProperty
     @Size(min = 1)
-    private List<BackendServer> servers;
+    private List<ServerConfiguration> servers;
 
     public String getName() {
         return name;
     }
 
-    public List<BackendServer> getServers() {
+    public StatusCheckConfiguration getStatusCheck() {
+        return statusCheck;
+    }
+
+    public List<ServerConfiguration> getServers() {
         return servers;
     }
+
 
 }

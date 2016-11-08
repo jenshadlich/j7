@@ -17,8 +17,8 @@ public class ServerHealthCheck extends HealthCheck {
     @Override
     protected Result check() throws Exception {
         return server.getStatus().getOpState().isUp()
-                ? Result.healthy(server.getInstance() + " is UP")
-                : Result.unhealthy(server.getInstance() + " is DOWN");
+                ? Result.healthy("[instance=" + server.getInstance() + "] is UP")
+                : Result.unhealthy("[instance=" + server.getInstance() + "] is DOWN");
     }
 
 }

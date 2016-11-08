@@ -17,8 +17,8 @@ public class J7HealthCheck extends HealthCheck {
     @Override
     protected Result check() throws Exception {
         return backend.isUp()
-                ? Result.healthy("backend is UP")
-                : Result.unhealthy("backend is DOWN");
+                ? Result.healthy("[backend=" + backend.getName() + "] is UP")
+                : Result.unhealthy("[backend=" + backend.getName() + "] is DOWN");
     }
 
 }

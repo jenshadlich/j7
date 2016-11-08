@@ -64,7 +64,7 @@ public class J7Configuration extends Configuration {
         return new Backend(
                 backendConfiguration.getName(),
                 servers,
-                new RoundRobin(servers),
+                RoundRobin::new,
                 buildHttpClient());
     }
 

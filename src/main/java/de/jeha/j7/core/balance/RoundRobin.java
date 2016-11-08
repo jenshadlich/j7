@@ -1,6 +1,7 @@
 package de.jeha.j7.core.balance;
 
 import de.jeha.j7.core.Backend;
+import de.jeha.j7.core.BackendDownException;
 import de.jeha.j7.core.Server;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -14,17 +15,27 @@ public class RoundRobin implements LoadBalancer {
 
     private static final Logger LOG = LoggerFactory.getLogger(RoundRobin.class);
 
+    private final Backend backend;
     private final CircularList<Server> servers;
 
-    public RoundRobin(List<Server> servers) {
-        this.servers = new CircularList<>(servers);
+    public RoundRobin(Backend backend) {
+        this.backend = backend;
+        this.servers = new CircularList<>(backend.getServers());
     }
 
     @Override
-    public Server balance() {
-        final Server instance = servers.next();
-        LOG.debug("balance: {}", instance);
-        return instance;
+    public Server balance() throws BackendDownException {
+        LOG.debug("Race for the next healthy server ...");
+
+        while (backend.isUp()) {
+            final Server server = servers.next();
+            if (server.getStatus().getOpState().isUp()) {
+                LOG.debug("Found server {}", server);
+                return server;
+            }
+        }
+
+        throw new BackendDownException("[backend=" + backend.getName() + "] is DOWN");
     }
 
     private static class CircularList<T> {

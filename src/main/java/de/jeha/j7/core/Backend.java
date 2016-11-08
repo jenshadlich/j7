@@ -1,6 +1,7 @@
 package de.jeha.j7.core;
 
 import de.jeha.j7.core.balance.LoadBalancer;
+import de.jeha.j7.core.balance.LoadBalancerFactory;
 import org.apache.http.impl.client.CloseableHttpClient;
 
 import java.util.List;
@@ -15,10 +16,10 @@ public class Backend {
     private final LoadBalancer loadBalancer;
     private final CloseableHttpClient httpClient;
 
-    public Backend(String name, List<Server> servers, LoadBalancer loadBalancer, CloseableHttpClient httpClient) {
+    public Backend(String name, List<Server> servers, LoadBalancerFactory loadBalancerFactory, CloseableHttpClient httpClient) {
         this.name = name;
         this.servers = servers;
-        this.loadBalancer = loadBalancer;
+        this.loadBalancer = loadBalancerFactory.create(this);
         this.httpClient = httpClient;
     }
 

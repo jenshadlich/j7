@@ -2,15 +2,13 @@ package de.jeha.j7.resources;
 
 import com.codahale.metrics.annotation.Timed;
 import de.jeha.j7.common.http.Headers;
-import de.jeha.j7.config.J7Configuration;
 import de.jeha.j7.core.Backend;
-import de.jeha.j7.core.balance.LoadBalancer;
+import de.jeha.j7.core.BackendDownException;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.Header;
 import org.apache.http.client.methods.*;
 import org.apache.http.entity.ByteArrayEntity;
-import org.apache.http.impl.client.CloseableHttpClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -49,7 +47,13 @@ public class ProxyResource {
                              @Context HttpServletResponse response) {
         LOG.info("proxy GET request '{}', '{}'", request.getRequestURI(), request.getQueryString());
 
-        final String url = buildBackendUrl(request);
+        final String url;
+        try {
+            url = buildBackendUrl(request);
+        } catch (BackendDownException e) {
+            LOG.warn("502 Bad Gateway: {}", e.getMessage());
+            return badGateway();
+        }
         final HttpGet delegate = new HttpGet(url);
 
         try {
@@ -66,7 +70,13 @@ public class ProxyResource {
                               @Context HttpServletResponse response) {
         LOG.info("proxy HEAD request '{}', '{}'", request.getRequestURI(), request.getQueryString());
 
-        final String url = buildBackendUrl(request);
+        final String url;
+        try {
+            url = buildBackendUrl(request);
+        } catch (BackendDownException e) {
+            LOG.warn("502 Bad Gateway: {}", e.getMessage());
+            return badGateway();
+        }
         final HttpHead delegate = new HttpHead(url);
 
         try {
@@ -83,7 +93,13 @@ public class ProxyResource {
                               @Context HttpServletResponse response) {
         LOG.info("proxy POST request '{}', '{}'", request.getRequestURI(), request.getQueryString());
 
-        final String url = buildBackendUrl(request);
+        final String url;
+        try {
+            url = buildBackendUrl(request);
+        } catch (BackendDownException e) {
+            LOG.warn("502 Bad Gateway: {}", e.getMessage());
+            return badGateway();
+        }
         final HttpPost delegate = new HttpPost(url);
 
         try {
@@ -101,7 +117,13 @@ public class ProxyResource {
                              @Context HttpServletResponse response) {
         LOG.info("proxy PUT request '{}', '{}'", request.getRequestURI(), request.getQueryString());
 
-        final String url = buildBackendUrl(request);
+        final String url;
+        try {
+            url = buildBackendUrl(request);
+        } catch (BackendDownException e) {
+            LOG.warn("502 Bad Gateway: {}", e.getMessage());
+            return badGateway();
+        }
         final HttpPut delegate = new HttpPut(url);
 
         try {
@@ -119,7 +141,14 @@ public class ProxyResource {
                                 @Context HttpServletResponse response) {
         LOG.info("proxy DELETE request '{}', '{}'", request.getRequestURI(), request.getQueryString());
 
-        final String url = buildBackendUrl(request);
+        final String url;
+        try {
+            url = buildBackendUrl(request);
+        } catch (BackendDownException e) {
+            LOG.warn("502 Bad Gateway: {}", e.getMessage());
+            return badGateway();
+        }
+
         final HttpDelete delegate = new HttpDelete(url);
 
         try {
@@ -131,7 +160,7 @@ public class ProxyResource {
 
     // -----------------------------------------------------------------------------------------------------------------
 
-    private String buildBackendUrl(HttpServletRequest request) {
+    private String buildBackendUrl(HttpServletRequest request) throws BackendDownException {
         String url = "http://" + chooseBackendInstance() + request.getRequestURI();
         if (!StringUtils.isEmpty(request.getQueryString())) {
             url += request.getQueryString();
@@ -139,7 +168,7 @@ public class ProxyResource {
         return url;
     }
 
-    private String chooseBackendInstance() {
+    private String chooseBackendInstance() throws BackendDownException {
         return backend.getLoadBalancer().balance().getInstance();
     }
 

@@ -28,6 +28,7 @@
         <apache-httpcomponents.version>4.5.2</apache-httpcomponents.version>
         <commons-io.version>2.5</commons-io.version>
         <junit.version>4.12</junit.version>
+        <mockito-core.version>1.10.19</mockito-core.version>
 
         <buildTime>${maven.build.timestamp}</buildTime>
         <maven.build.timestamp.format>yyyy-MM-dd'T'HH:mm:ss</maven.build.timestamp.format>
@@ -65,6 +66,12 @@
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
             <version>${junit.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-core</artifactId>
+            <version>${mockito-core.version}</version>
             <scope>test</scope>
         </dependency>
     </dependencies>

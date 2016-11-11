@@ -29,7 +29,6 @@ import static de.jeha.j7.common.http.Headers.CONTENT_LENGTH;
 public class ProxyResource {
 
     private static final Logger LOG = LoggerFactory.getLogger(ProxyResource.class);
-
     private static final String ALL_SUB_RESOURCES = "{subResources:.*}";
 
     private final String serverSignature;

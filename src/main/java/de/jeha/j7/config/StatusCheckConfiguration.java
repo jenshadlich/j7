@@ -8,7 +8,7 @@ import java.util.List;
 /**
  * @author jenshadlich@googlemail.com
  */
-public class StatusCheckConfiguration {
+class StatusCheckConfiguration {
 
     @JsonProperty
     private String path;

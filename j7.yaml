@@ -31,8 +31,8 @@ serverSignature: j7
 
 backend:
   name: default
-#  balance:
-#    type: round-robin
+  loadBalancer:
+    type: round-robin
   statusCheck:
     path: /
   servers:

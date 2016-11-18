@@ -18,6 +18,10 @@ public class Server {
         this.status = status;
     }
 
+    public Server(String instance) {
+        this (instance, null, new Status());
+    }
+
     public String getInstance() {
         return instance;
     }

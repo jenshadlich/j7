@@ -39,7 +39,7 @@ public class RoundRobin implements LoadBalancer {
     }
 
     private static class CircularList<T> {
-        private int i = 0;
+        private int i = -1;
         private final List<T> items;
 
         CircularList(List<T> items) {

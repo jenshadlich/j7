@@ -8,6 +8,7 @@ import de.jeha.j7.health.J7HealthCheck;
 import de.jeha.j7.health.ServerHealthCheck;
 import de.jeha.j7.request.tracing.RequestTracingServletFilter;
 import de.jeha.j7.resources.ProxyResource;
+import de.jeha.j7.servlets.VersionServlet;
 import io.dropwizard.Application;
 import io.dropwizard.setup.Bootstrap;
 import io.dropwizard.setup.Environment;
@@ -64,6 +65,8 @@ public class J7Application extends Application<J7Configuration> {
         environment.jersey().disable(ServerProperties.WADL_FEATURE_DISABLE);
         environment.jersey().disable(ServerProperties.LOCATION_HEADER_RELATIVE_URI_RESOLUTION_DISABLED);
         environment.jersey().disable(ServerProperties.JSON_PROCESSING_FEATURE_DISABLE);
+
+        environment.admin().addServlet("version", new VersionServlet()).addMapping("/version");
 
         setupStatusChecks(configuration, environment);
     }

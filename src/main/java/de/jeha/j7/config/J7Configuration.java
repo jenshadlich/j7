@@ -4,13 +4,16 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import de.jeha.j7.core.Backend;
 import de.jeha.j7.core.Server;
-import de.jeha.j7.core.balance.RoundRobin;
 import io.dropwizard.Configuration;
+import org.apache.http.HttpRequestInterceptor;
+import org.apache.http.HttpResponseInterceptor;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.impl.conn.BasicHttpClientConnectionManager;
 import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
+import org.apache.http.protocol.HttpProcessor;
+import org.apache.http.protocol.ImmutableHttpProcessor;
 
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
@@ -21,6 +24,9 @@ import java.util.stream.Collectors;
  * @author jenshadlich@googlemail.com
  */
 public class J7Configuration extends Configuration {
+
+    private static final HttpProcessor DEFAULT_HTTP_PROCESSOR =
+            new ImmutableHttpProcessor(new HttpRequestInterceptor[]{}, new HttpResponseInterceptor[]{});
 
     @NotNull
     @JsonProperty
@@ -79,6 +85,7 @@ public class J7Configuration extends Configuration {
         connectionManager.setMaxTotal(1024);
 
         return HttpClientBuilder.create()
+                .setHttpProcessor(DEFAULT_HTTP_PROCESSOR)
                 .setConnectionManager(connectionManager)
                 .setDefaultRequestConfig(config)
                 .build();

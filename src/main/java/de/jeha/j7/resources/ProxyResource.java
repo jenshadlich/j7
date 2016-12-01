@@ -8,7 +8,7 @@ import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.Header;
 import org.apache.http.client.methods.*;
-import org.apache.http.entity.ByteArrayEntity;
+import org.apache.http.entity.InputStreamEntity;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -19,8 +19,6 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.Response;
 import java.io.IOException;
 import java.util.Collections;
-
-import static de.jeha.j7.common.http.Headers.CONTENT_LENGTH;
 
 /**
  * @author jenshadlich@googlemail.com
@@ -102,7 +100,7 @@ public class ProxyResource {
         final HttpPost delegate = new HttpPost(url);
 
         try {
-            delegate.setEntity(new ByteArrayEntity(IOUtils.toByteArray(request.getInputStream())));
+            delegate.setEntity(new InputStreamEntity(request.getInputStream()));
             return process(request, delegate, response);
         } catch (IOException e) {
             return serverError(e);
@@ -126,7 +124,7 @@ public class ProxyResource {
         final HttpPut delegate = new HttpPut(url);
 
         try {
-            delegate.setEntity(new ByteArrayEntity(IOUtils.toByteArray(request.getInputStream())));
+            delegate.setEntity(new InputStreamEntity(request.getInputStream()));
             return process(request, delegate, response);
         } catch (IOException e) {
             return serverError(e);
@@ -213,10 +211,6 @@ public class ProxyResource {
 
     private void copyHeaders(HttpServletRequest source, HttpRequestBase target) {
         for (String headerName : Collections.list(source.getHeaderNames())) {
-            if (CONTENT_LENGTH.equals(headerName)) {
-                // don't copy the content length, otherwise httpclient will complain
-                continue;
-            }
             target.setHeader(headerName, source.getHeader(headerName));
         }
     }

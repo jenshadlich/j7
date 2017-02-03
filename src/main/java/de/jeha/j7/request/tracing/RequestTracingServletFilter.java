@@ -9,13 +9,15 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Supplier;
 
+import static de.jeha.j7.common.UUIDBase64.uuidToBase64;
+
 /**
  * @author jenshadlich@googlemail.com
  */
 public class RequestTracingServletFilter implements Filter {
 
     private final static String X_TRACE_ID = "X-Trace-Id";
-    private final static Supplier<String> TRACE_ID_SUPPLIER = () -> UUID.randomUUID().toString();
+    private final static Supplier<String> TRACE_ID_SUPPLIER = () -> uuidToBase64(UUID.randomUUID());
 
     @Override
     public void init(FilterConfig filterConfig) throws ServletException {

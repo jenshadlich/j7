@@ -21,11 +21,13 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 
-        <slf4j.version>1.7.21</slf4j.version>
-        <dropwizard.version>1.0.2</dropwizard.version>
+        <slf4j.version>1.7.22</slf4j.version>
+        <logback.version>1.1.9</logback.version>
+        <dropwizard.version>1.0.5</dropwizard.version>
         <commons-io.version>2.5</commons-io.version>
         <commons-codec.version>1.10</commons-codec.version>
-        <apache-httpcomponents.version>4.5.2</apache-httpcomponents.version>
+        <apache-hc-httpclient.version>4.5.3</apache-hc-httpclient.version>
+        <apache-hc-httpcore.version>4.4.6</apache-hc-httpcore.version>
         <commons-io.version>2.5</commons-io.version>
         <junit.version>4.12</junit.version>
         <mockito-core.version>1.10.19</mockito-core.version>
@@ -54,8 +56,20 @@
         <dependency>
             <groupId>org.apache.httpcomponents</groupId>
             <artifactId>httpclient</artifactId>
-            <version>${apache-httpcomponents.version}</version>
+            <version>${apache-hc-httpclient.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>commons-logging</groupId>
+                    <artifactId>commons-logging</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
+        <dependency>
+            <groupId>org.apache.httpcomponents</groupId>
+            <artifactId>httpcore</artifactId>
+            <version>${apache-hc-httpcore.version}</version>
+        </dependency>
+
         <dependency>
             <groupId>commons-io</groupId>
             <artifactId>commons-io</artifactId>
@@ -74,6 +88,26 @@
             <version>${mockito-core.version}</version>
             <scope>test</scope>
         </dependency>
+
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-access</artifactId>
+            <version>${logback.version}</version>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-core</artifactId>
+            <version>${logback.version}</version>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
+            <version>${logback.version}</version>
+            <scope>runtime</scope>
+        </dependency>
+
     </dependencies>
 
     <build>
